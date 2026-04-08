@@ -39,6 +39,7 @@ This bot lets members post confessions under an alias while still allowing admin
    - `CLIENT_ID`
    - optionally `GUILD_ID` for instant dev command registration
    - `DASHBOARD_PASSWORD` for the web dashboard login
+   - optionally `DATA_DIR` if you want storage outside the project folder
    - optionally `DASHBOARD_PORT`
 4. Install packages:
 
@@ -53,6 +54,63 @@ npm start
 ```
 
 6. Open the dashboard at `http://localhost:3000` unless you changed `DASHBOARD_PORT`.
+
+## Railway Deploy
+
+Railway is a good fit for this project because it can run the Discord bot and the dashboard in one Node service.
+
+1. Push this repo to GitHub.
+2. In Railway, create a new project from the GitHub repo.
+3. Add a Volume and mount it at `/app/data`.
+4. In Railway variables, set:
+   - `DISCORD_TOKEN`
+   - `CLIENT_ID`
+   - `DASHBOARD_PASSWORD`
+   - `DATA_DIR=/app/data`
+   - optionally `GUILD_ID`
+   - optionally `DEFAULT_CONFESSION_CHANNEL_ID`
+   - optionally `DEFAULT_AUDIT_CHANNEL_ID`
+   - optionally `DEFAULT_PING_ROLE_ID`
+5. Deploy. Railway will provide the `PORT` variable automatically, and the dashboard will use it.
+
+Your confession data will then persist in the mounted Railway volume instead of disappearing on redeploy.
+
+## Testing
+
+Use this order so you can tell exactly what is working:
+
+1. Run `npm run check`
+   - This confirms the main source files parse correctly.
+2. Run `npm start`
+   - You should see logs that the bot logged in and slash commands registered.
+   - If `DASHBOARD_PASSWORD` is set, you should also see the dashboard port message.
+3. Open the dashboard
+   - Visit `http://localhost:3000` locally, or your Railway service URL after deploy.
+   - Log in with `DASHBOARD_PASSWORD`.
+4. In Discord, run `/confessions-config`
+   - Set the confession channel
+   - Set the audit channel
+   - Optionally set the ping role
+5. In Discord, run `/confessions-status`
+   - Confirm the IDs and channel mentions look correct.
+6. Submit a confession with `/confess`
+   - Confirm the public confession appears in the confession channel
+   - Confirm the alias appears publicly
+   - Confirm the configured role gets pinged if enabled
+   - Confirm the real author appears only in the audit channel
+7. Click `Reply in thread`
+   - Submit an anonymous reply
+   - Confirm a thread is created
+   - Confirm the reply appears in the thread under the reply alias
+   - Confirm the audit channel logs the real author of the reply
+8. Refresh the dashboard
+   - Confirm the confession appears in history
+   - Confirm the author ID and links are visible there
+9. Restart the app
+   - Confirm the saved config and confession history are still present
+   - On Railway, this verifies your volume is mounted correctly
+
+If slash commands do not appear right away, set `GUILD_ID` for your test server and restart the app. Guild commands update much faster than global commands.
 
 ## One-Click Preview
 

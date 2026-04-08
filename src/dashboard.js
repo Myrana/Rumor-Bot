@@ -256,7 +256,7 @@ function startDashboard({ client }) {
 
   const app = express();
   const sessionValue = buildSessionValue(dashboardPassword);
-  const port = Number(process.env.DASHBOARD_PORT || 3000);
+  const port = Number(process.env.PORT || process.env.DASHBOARD_PORT || 3000);
 
   app.use(express.urlencoded({ extended: false }));
   app.use(express.static(path.join(process.cwd(), "src", "public")));
@@ -338,7 +338,7 @@ function startDashboard({ client }) {
   });
 
   return app.listen(port, () => {
-    console.log(`Dashboard available at http://localhost:${port}`);
+    console.log(`Dashboard available on port ${port}`);
   });
 }
 
