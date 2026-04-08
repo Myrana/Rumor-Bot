@@ -166,6 +166,16 @@ function buildReplyAuditEmbed({
     .setTimestamp();
 }
 
+async function trySendAuditLog(channel, payload, contextLabel) {
+  try {
+    await channel.send(payload);
+    return true;
+  } catch (error) {
+    console.error(`Failed to send ${contextLabel} audit log:`, error);
+    return false;
+  }
+}
+
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
@@ -394,10 +404,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
         confessionChannelId: confessionChannel.id
       });
 
-      await auditChannel.send({ embeds: [auditEmbed] });
+      const auditLogged = await trySendAuditLog(
+        auditChannel,
+        { embeds: [auditEmbed] },
+        "confession"
+      );
 
       await interaction.editReply({
-        content: "Your confession has been posted."
+        content: auditLogged
+          ? "Your confession has been posted."
+          : "Your confession has been posted, but I couldn't write to the audit channel."
       });
 
       return;
@@ -521,7 +537,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
             confessionChannelId: confessionRecord.channelId
           });
 
-          await auditChannel.send({ embeds: [replyAuditEmbed] });
+          const auditLogged = await trySendAuditLog(
+            auditChannel,
+            { embeds: [replyAuditEmbed] },
+            "reply"
+          );
+
+          await interaction.editReply({
+            content: auditLogged
+              ? `Your reply has been posted in <#${thread.id}>.`
+              : `Your reply has been posted in <#${thread.id}>, but I couldn't write to the audit channel.`
+          });
+          return;
         }
       }
 
@@ -532,11 +559,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
   } catch (error) {
     console.error("Interaction handling failed:", error);
 
-    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: "Something went wrong while handling that action.",
-        ephemeral: true
-      }).catch(() => null);
+    if (interaction.isRepliable()) {
+      if (interaction.deferred && !interaction.replied) {
+        await interaction.editReply({
+          content: "Something went wrong while handling that action."
+        }).catch(() => null);
+      } else if (!interaction.replied) {
+        await interaction.reply({
+          content: "Something went wrong while handling that action.",
+          ephemeral: true
+        }).catch(() => null);
+      }
     }
   }
 });
