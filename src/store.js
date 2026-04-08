@@ -1,9 +1,24 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const dataDir = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), "data");
+function resolveDataDir() {
+  if (process.env.DATA_DIR) {
+    return path.resolve(process.env.DATA_DIR);
+  }
+
+  if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+    return path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH);
+  }
+
+  const railwayDefault = "/app/data";
+  if (process.env.RAILWAY_ENVIRONMENT && fs.existsSync(railwayDefault)) {
+    return railwayDefault;
+  }
+
+  return path.join(process.cwd(), "data");
+}
+
+const dataDir = resolveDataDir();
 const storePath = path.join(dataDir, "store.json");
 
 const defaultState = {
@@ -100,12 +115,14 @@ function updateConfession(messageId, partialConfession) {
 }
 
 module.exports = {
+  dataDir,
   getGuildConfig,
   getConfession,
   listConfessions,
   listGuildConfigs,
   readStore,
   saveConfession,
+  storePath,
   updateConfession,
   upsertGuildConfig
 };

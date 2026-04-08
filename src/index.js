@@ -19,9 +19,11 @@ const {
 } = require("discord.js");
 
 const {
+  dataDir,
   getConfession,
   getGuildConfig,
   saveConfession,
+  storePath,
   updateConfession,
   upsertGuildConfig
 } = require("./store");
@@ -234,6 +236,8 @@ async function createReplyThread(confessionMessage, confessionRecord) {
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
+  console.log(`Using data directory: ${dataDir}`);
+  console.log(`Using store file: ${storePath}`);
 
   try {
     await registerCommands();
