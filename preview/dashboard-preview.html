@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Discord Confessions Dashboard Preview</title>
+    <link rel="stylesheet" href="../src/public/dashboard.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Discord Confessions</p>
+          <h1>Dashboard Preview</h1>
+        </div>
+      </header>
+
+      <div class="flash">Preview mode. This is a static mockup so you can review the interface in one click.</div>
+
+      <main class="stack-xl">
+        <section class="summary-grid">
+          <article class="summary-card">
+            <span class="summary-label">Configured servers</span>
+            <strong>3</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Stored confessions</span>
+            <strong>128</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Connected guilds</span>
+            <strong>4</strong>
+          </article>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>Add or update a server</h2>
+              <p class="muted">Use this when a guild is not already listed below.</p>
+            </div>
+          </div>
+          <form class="grid-form">
+            <label>
+              <span>Guild ID</span>
+              <input type="text" value="125839204857120" />
+            </label>
+            <label>
+              <span>Confession channel ID</span>
+              <input type="text" value="125839204857121" />
+            </label>
+            <label>
+              <span>Audit channel ID</span>
+              <input type="text" value="125839204857122" />
+            </label>
+            <label>
+              <span>Ping role ID</span>
+              <input type="text" value="125839204857123" />
+            </label>
+            <button type="button">Save server config</button>
+          </form>
+        </section>
+
+        <section class="stack">
+          <div class="section-heading">
+            <h2>Server configuration</h2>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <h2>Campus Confessions (125839204857120)</h2>
+                <p class="muted">Edit the channels and optional ping role for this server.</p>
+              </div>
+            </div>
+            <form class="grid-form">
+              <label>
+                <span>Confession channel ID</span>
+                <input type="text" value="125839204857121" />
+              </label>
+              <label>
+                <span>Audit channel ID</span>
+                <input type="text" value="125839204857122" />
+              </label>
+              <label>
+                <span>Ping role ID</span>
+                <input type="text" value="125839204857123" />
+              </label>
+              <button type="button">Save server config</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <h2>Late Night Lounge (225839204857120)</h2>
+                <p class="muted">Edit the channels and optional ping role for this server.</p>
+              </div>
+            </div>
+            <form class="grid-form">
+              <label>
+                <span>Confession channel ID</span>
+                <input type="text" value="225839204857121" />
+              </label>
+              <label>
+                <span>Audit channel ID</span>
+                <input type="text" value="225839204857122" />
+              </label>
+              <label>
+                <span>Ping role ID</span>
+                <input type="text" value="" placeholder="Disabled" />
+              </label>
+              <button type="button">Save server config</button>
+            </form>
+          </section>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>Confession history</h2>
+              <p class="muted">This includes author IDs, so keep the real dashboard restricted.</p>
+            </div>
+            <button class="secondary" type="button">Log out</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Guild</th>
+                  <th>Alias</th>
+                  <th>Confession</th>
+                  <th>Author ID</th>
+                  <th>Created</th>
+                  <th>Links</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Campus Confessions</td>
+                  <td>hallway-ghost</td>
+                  <td class="body-cell">I fake confidence in every group project and hope nobody notices I am learning as I go.</td>
+                  <td>843920184392018432</td>
+                  <td>Apr 7, 2026, 10:18 PM</td>
+                  <td><a href="#">Post</a> <a href="#">Thread</a></td>
+                </tr>
+                <tr>
+                  <td>Late Night Lounge</td>
+                  <td>midnight-friend</td>
+                  <td class="body-cell">I joined for memes and accidentally stayed because this server is way nicer than most group chats.</td>
+                  <td>750194820194820194</td>
+                  <td>Apr 7, 2026, 9:41 PM</td>
+                  <td><a href="#">Post</a></td>
+                </tr>
+                <tr>
+                  <td>Campus Confessions</td>
+                  <td>library-shadow</td>
+                  <td class="body-cell">I told everyone I understood the assignment. I did not understand the assignment.</td>
+                  <td>551928374650192837</td>
+                  <td>Apr 7, 2026, 8:02 PM</td>
+                  <td><a href="#">Post</a> <a href="#">Thread</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
