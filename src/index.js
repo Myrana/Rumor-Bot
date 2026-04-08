@@ -433,6 +433,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         alias,
         body: confessionBody,
         authorId: interaction.user.id,
+        authorUsername: interaction.user.username || null,
+        authorTag: interaction.user.tag || null,
         threadId: thread.id,
         createdAt: new Date().toISOString()
       });

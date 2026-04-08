@@ -69,6 +69,7 @@ function summarizeMembers(confessions) {
   for (const confession of confessions) {
     const existing = summary.get(confession.authorId) || {
       authorId: confession.authorId,
+      authorUsername: confession.authorUsername || confession.authorTag || null,
       confessionCount: 0,
       latestAt: confession.createdAt,
       guildIds: new Set(),
@@ -81,6 +82,10 @@ function summarizeMembers(confessions) {
 
     if (!existing.latestAt || new Date(confession.createdAt).getTime() > new Date(existing.latestAt).getTime()) {
       existing.latestAt = confession.createdAt;
+    }
+
+    if (!existing.authorUsername && (confession.authorUsername || confession.authorTag)) {
+      existing.authorUsername = confession.authorUsername || confession.authorTag;
     }
 
     summary.set(confession.authorId, existing);
@@ -99,6 +104,10 @@ function summarizeMembers(confessions) {
       guildCount: entry.guildIds.size,
       aliases: Array.from(entry.aliases).sort()
     }));
+}
+
+function authorDisplayName(record) {
+  return record.authorUsername || record.authorTag || record.authorId;
 }
 
 function layout({ title, body, flashMessage = "" }) {
@@ -185,6 +194,7 @@ function dashboardPage({ client, flashMessage = "", authorFilter = "" }) {
     .map((member) => `<article class="member-card">
       <div class="member-card-top">
         <div>
+          <div class="member-name">${escapeHtml(authorDisplayName(member))}</div>
           <div class="member-id">${escapeHtml(member.authorId)}</div>
           <div class="muted">${member.confessionCount} confession${member.confessionCount === 1 ? "" : "s"} across ${member.guildCount} guild${member.guildCount === 1 ? "" : "s"}</div>
         </div>
@@ -209,7 +219,7 @@ function dashboardPage({ client, flashMessage = "", authorFilter = "" }) {
         <td>${escapeHtml(guildName)}</td>
         <td>${escapeHtml(confession.alias)}</td>
         <td class="body-cell">${escapeHtml(confession.body)}</td>
-        <td><a href="/members/${encodeURIComponent(confession.authorId)}">${escapeHtml(confession.authorId)}</a></td>
+        <td><a href="/members/${encodeURIComponent(confession.authorId)}">${escapeHtml(authorDisplayName(confession))}</a><div class="subtle-id">${escapeHtml(confession.authorId)}</div></td>
         <td>${formatDate(confession.createdAt)}</td>
         <td>
           <a href="${escapeHtml(messageUrl)}" target="_blank" rel="noreferrer">Post</a>
@@ -334,7 +344,7 @@ function memberDirectoryPage({ client, flashMessage = "" }) {
   const memberSummaries = summarizeMembers(listConfessions());
   const rows = memberSummaries
     .map((member) => `<tr>
-      <td><a href="/members/${encodeURIComponent(member.authorId)}">${escapeHtml(member.authorId)}</a></td>
+      <td><a href="/members/${encodeURIComponent(member.authorId)}">${escapeHtml(authorDisplayName(member))}</a><div class="subtle-id">${escapeHtml(member.authorId)}</div></td>
       <td>${member.confessionCount}</td>
       <td>${member.guildCount}</td>
       <td>${escapeHtml(member.aliases.slice(0, 5).join(", ")) || "None"}</td>
@@ -480,6 +490,7 @@ async function confessionDetailPage({ client, confession, flashMessage = "" }) {
 
 function memberDetailPage({ client, authorId, confessions, flashMessage = "" }) {
   const summary = summarizeMembers(confessions)[0] || {
+    authorUsername: confessions[0]?.authorUsername || confessions[0]?.authorTag || null,
     confessionCount: confessions.length,
     guildCount: new Set(confessions.map((confession) => confession.guildId)).size,
     aliases: Array.from(new Set(confessions.map((confession) => confession.alias))).sort(),
@@ -508,16 +519,20 @@ function memberDetailPage({ client, authorId, confessions, flashMessage = "" }) 
     .join("");
 
   return layout({
-    title: `Member ${authorId}`,
+    title: `${authorDisplayName(summary)}`,
     flashMessage,
     body: `<main class="stack-xl">
       <section class="card">
         <div class="card-header">
           <div>
-            <h2>${escapeHtml(authorId)}</h2>
+            <h2>${escapeHtml(authorDisplayName(summary))}</h2>
             <p class="muted">Moderation view for one stored member.</p>
           </div>
           <a class="button-link secondary-link" href="/members">Back to members</a>
+        </div>
+        <div class="detail-block">
+          <div class="detail-label">Discord ID</div>
+          <div class="subtle-id">${escapeHtml(authorId)}</div>
         </div>
         <div class="summary-grid">
           <article class="summary-card">

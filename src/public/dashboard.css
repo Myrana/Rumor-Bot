@@ -273,7 +273,21 @@ a {
 }
 
 .member-id {
+  color: var(--muted);
+  font-size: 0.92rem;
+  word-break: break-all;
+}
+
+.member-name {
   font-weight: 700;
+  font-size: 1.15rem;
+  word-break: break-word;
+}
+
+.subtle-id {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
   word-break: break-all;
 }
 
