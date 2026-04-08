@@ -3,7 +3,7 @@ const path = require("node:path");
 
 const express = require("express");
 
-const { listConfessions, listGuildConfigs, upsertGuildConfig } = require("./store");
+const { getConfession, listConfessions, listGuildConfigs, upsertGuildConfig } = require("./store");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -57,6 +57,10 @@ function formatDate(value) {
 function guildLabel(client, guildId) {
   const guild = client.guilds.cache.get(guildId);
   return guild ? `${guild.name} (${guildId})` : guildId;
+}
+
+function discordMessageUrl(guildId, channelId, messageId) {
+  return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 }
 
 function layout({ title, body, flashMessage = "" }) {
@@ -135,9 +139,9 @@ function dashboardPage({ client, flashMessage = "" }) {
   const confessionsTable = listConfessions()
     .map((confession) => {
       const guildName = guildLabel(client, confession.guildId);
-      const messageUrl = `https://discord.com/channels/${confession.guildId}/${confession.channelId}/${confession.messageId}`;
+      const messageUrl = discordMessageUrl(confession.guildId, confession.channelId, confession.messageId);
       const threadUrl = confession.threadId
-        ? `https://discord.com/channels/${confession.guildId}/${confession.threadId}/${confession.threadId}`
+        ? discordMessageUrl(confession.guildId, confession.threadId, confession.threadId)
         : "";
 
       return `<tr>
@@ -149,6 +153,7 @@ function dashboardPage({ client, flashMessage = "" }) {
         <td>
           <a href="${escapeHtml(messageUrl)}" target="_blank" rel="noreferrer">Post</a>
           ${threadUrl ? ` <a href="${escapeHtml(threadUrl)}" target="_blank" rel="noreferrer">Thread</a>` : ""}
+          <a href="/confessions/${encodeURIComponent(confession.messageId)}">Details</a>
         </td>
       </tr>`;
     })
@@ -242,6 +247,109 @@ function dashboardPage({ client, flashMessage = "" }) {
   });
 }
 
+function renderThreadMessage(message) {
+  const embed = message.embeds?.[0] || null;
+  const fields = embed?.fields || [];
+  const alias = fields.find((field) => field.name === "Alias")?.value || "Unknown";
+  const confession = fields.find((field) => field.name === "Confession")?.value || "";
+  const reply = fields.find((field) => field.name === "Reply")?.value || "";
+  const body = confession || reply || message.content || "No text";
+  const title = embed?.title || (message.content ? "Message" : "Discord Embed");
+  const author = message.author?.tag || message.author?.username || "Unknown author";
+
+  return `<article class="thread-message">
+    <div class="thread-meta">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(author)} • ${escapeHtml(formatDate(message.createdAt))}</span>
+    </div>
+    <div class="thread-alias">Alias: ${escapeHtml(alias)}</div>
+    <div class="thread-body">${escapeHtml(body)}</div>
+  </article>`;
+}
+
+async function confessionDetailPage({ client, confession, flashMessage = "" }) {
+  const guildName = guildLabel(client, confession.guildId);
+  const messageUrl = discordMessageUrl(confession.guildId, confession.channelId, confession.messageId);
+  const threadUrl = confession.threadId
+    ? discordMessageUrl(confession.guildId, confession.threadId, confession.threadId)
+    : "";
+
+  let threadMessagesMarkup = '<p class="muted">No reply thread is attached to this confession yet.</p>';
+
+  if (confession.threadId) {
+    const guild = await client.guilds.fetch(confession.guildId).catch(() => null);
+    const thread = guild ? await guild.channels.fetch(confession.threadId).catch(() => null) : null;
+
+    if (thread && "messages" in thread) {
+      const fetchedMessages = await thread.messages.fetch({ limit: 100 }).catch(() => null);
+      const orderedMessages = fetchedMessages
+        ? Array.from(fetchedMessages.values()).sort(
+            (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+          )
+        : [];
+
+      threadMessagesMarkup = orderedMessages.length
+        ? orderedMessages.map((message) => renderThreadMessage(message)).join("")
+        : '<p class="muted">The thread exists, but no replies have been posted yet.</p>';
+    } else {
+      threadMessagesMarkup = '<p class="muted">The saved thread could not be loaded from Discord.</p>';
+    }
+  }
+
+  return layout({
+    title: `Confession by ${confession.alias}`,
+    flashMessage,
+    body: `<main class="stack-xl">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>${escapeHtml(guildName)}</h2>
+            <p class="muted">Message-level detail for one confession and its thread.</p>
+          </div>
+          <a class="button-link secondary-link" href="/">Back to dashboard</a>
+        </div>
+        <div class="detail-grid">
+          <div>
+            <div class="detail-label">Alias</div>
+            <div>${escapeHtml(confession.alias)}</div>
+          </div>
+          <div>
+            <div class="detail-label">Author ID</div>
+            <div>${escapeHtml(confession.authorId)}</div>
+          </div>
+          <div>
+            <div class="detail-label">Created</div>
+            <div>${escapeHtml(formatDate(confession.createdAt))}</div>
+          </div>
+          <div>
+            <div class="detail-label">Links</div>
+            <div>
+              <a href="${escapeHtml(messageUrl)}" target="_blank" rel="noreferrer">Open confession</a>
+              ${threadUrl ? ` <a href="${escapeHtml(threadUrl)}" target="_blank" rel="noreferrer">Open thread</a>` : ""}
+            </div>
+          </div>
+        </div>
+        <div class="detail-block">
+          <div class="detail-label">Confession</div>
+          <div class="thread-body">${escapeHtml(confession.body)}</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Thread activity</h2>
+            <p class="muted">Read replies from Discord without opening the app.</p>
+          </div>
+        </div>
+        <div class="thread-stack">
+          ${threadMessagesMarkup}
+        </div>
+      </section>
+    </main>`
+  });
+}
+
 function normalizeField(value) {
   const trimmed = String(value ?? "").trim();
   return trimmed || null;
@@ -296,6 +404,25 @@ function startDashboard({ client }) {
 
   app.get("/", (_request, response) => {
     response.send(dashboardPage({ client }));
+  });
+
+  app.get("/confessions/:messageId", async (request, response) => {
+    const confession = getConfession(request.params.messageId);
+
+    if (!confession) {
+      response.status(404).send(
+        layout({
+          title: "Confession Not Found",
+          body: `<main class="card">
+            <p class="muted">That confession record is not in the local store.</p>
+            <a class="button-link secondary-link" href="/">Back to dashboard</a>
+          </main>`
+        })
+      );
+      return;
+    }
+
+    response.send(await confessionDetailPage({ client, confession }));
   });
 
   app.post("/guilds", (request, response) => {

@@ -95,13 +95,28 @@ function getEffectiveGuildConfig(guildId) {
   };
 }
 
-function confessionButtonRow(messageId) {
-  return new ActionRowBuilder().addComponents(
+function discordMessageUrl(guildId, channelId, messageId) {
+  return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+}
+
+function confessionButtonRow({ guildId, messageId, threadId = null }) {
+  const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`reply:${messageId}`)
       .setLabel("Reply in thread")
       .setStyle(ButtonStyle.Primary)
   );
+
+  if (threadId) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setLabel("Open thread")
+        .setStyle(ButtonStyle.Link)
+        .setURL(discordMessageUrl(guildId, threadId, threadId))
+    );
+  }
+
+  return row;
 }
 
 function buildConfessionEmbed({ alias, body, authorTag }) {
@@ -131,7 +146,7 @@ function buildAuditEmbed({ alias, body, user, confessionMessageId, confessionCha
       { name: "Confession", value: body },
       {
         name: "Posted Message",
-        value: `https://discord.com/channels/${user.guild.id}/${confessionChannelId}/${confessionMessageId}`
+        value: discordMessageUrl(user.guild.id, confessionChannelId, confessionMessageId)
       }
     )
     .setTimestamp();
@@ -156,11 +171,11 @@ function buildReplyAuditEmbed({
       { name: "Reply", value: replyBody },
       {
         name: "Confession",
-        value: `https://discord.com/channels/${user.guild.id}/${confessionChannelId}/${confessionMessageId}`
+        value: discordMessageUrl(user.guild.id, confessionChannelId, confessionMessageId)
       },
       {
         name: "Thread",
-        value: `https://discord.com/channels/${user.guild.id}/${threadId}/${threadId}`
+        value: discordMessageUrl(user.guild.id, threadId, threadId)
       }
     )
     .setTimestamp();
@@ -205,6 +220,15 @@ async function createReplyThread(confessionMessage, confessionRecord) {
   });
 
   updateConfession(confessionRecord.messageId, { threadId: thread.id });
+  await confessionMessage.edit({
+    components: [
+      confessionButtonRow({
+        guildId: confessionMessage.guild.id,
+        messageId: confessionRecord.messageId,
+        threadId: thread.id
+      })
+    ]
+  }).catch(() => null);
   return thread;
 }
 
@@ -372,13 +396,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const postedMessage = await confessionChannel.send({
         content: pingContent,
         embeds: [confessionEmbed],
-        components: [confessionButtonRow("pending")],
+        components: [
+          confessionButtonRow({
+            guildId: interaction.guild.id,
+            messageId: "pending"
+          })
+        ],
         allowedMentions: config.pingRoleId ? { roles: [config.pingRoleId] } : { parse: [] }
+      });
+
+      const thread = await postedMessage.startThread({
+        name: `Replies to ${alias}`,
+        autoArchiveDuration: 1440,
+        reason: `Reply thread for confession by alias ${alias}`
       });
 
       await postedMessage.edit({
         embeds: [confessionEmbed],
-        components: [confessionButtonRow(postedMessage.id)]
+        components: [
+          confessionButtonRow({
+            guildId: interaction.guild.id,
+            messageId: postedMessage.id,
+            threadId: thread.id
+          })
+        ]
       });
 
       saveConfession({
@@ -388,7 +429,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         alias,
         body: confessionBody,
         authorId: interaction.user.id,
-        threadId: null,
+        threadId: thread.id,
         createdAt: new Date().toISOString()
       });
 
