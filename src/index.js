@@ -326,12 +326,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return;
       }
 
+      await interaction.deferReply({ ephemeral: true });
+
       const config = getEffectiveGuildConfig(interaction.guild.id);
 
       if (!config.confessionChannelId || !config.auditChannelId) {
-        await interaction.reply({
+        await interaction.editReply({
           content: "This server is not configured yet. Ask an admin to run `/confessions-config` first.",
-          ephemeral: true
         });
         return;
       }
@@ -340,17 +341,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const auditChannel = await interaction.guild.channels.fetch(config.auditChannelId).catch(() => null);
 
       if (!confessionChannel || confessionChannel.type !== ChannelType.GuildText) {
-        await interaction.reply({
-          content: "The configured confession channel is missing or invalid.",
-          ephemeral: true
+        await interaction.editReply({
+          content: "The configured confession channel is missing or invalid."
         });
         return;
       }
 
       if (!auditChannel || auditChannel.type !== ChannelType.GuildText) {
-        await interaction.reply({
-          content: "The configured audit channel is missing or invalid.",
-          ephemeral: true
+        await interaction.editReply({
+          content: "The configured audit channel is missing or invalid."
         });
         return;
       }
@@ -397,9 +396,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       await auditChannel.send({ embeds: [auditEmbed] });
 
-      await interaction.reply({
-        content: "Your confession has been posted.",
-        ephemeral: true
+      await interaction.editReply({
+        content: "Your confession has been posted."
       });
 
       return;
@@ -459,13 +457,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return;
       }
 
+      await interaction.deferReply({ ephemeral: true });
+
       const confessionMessageId = interaction.customId.split(":")[1];
       const confessionRecord = getConfession(confessionMessageId);
 
       if (!confessionRecord) {
-        await interaction.reply({
-          content: "I couldn't find the original confession record for this reply.",
-          ephemeral: true
+        await interaction.editReply({
+          content: "I couldn't find the original confession record for this reply."
         });
         return;
       }
@@ -473,9 +472,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const confessionChannel = await interaction.guild.channels.fetch(confessionRecord.channelId).catch(() => null);
 
       if (!confessionChannel || confessionChannel.type !== ChannelType.GuildText) {
-        await interaction.reply({
-          content: "The confession channel for this post is missing.",
-          ephemeral: true
+        await interaction.editReply({
+          content: "The confession channel for this post is missing."
         });
         return;
       }
@@ -483,9 +481,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const confessionMessage = await confessionChannel.messages.fetch(confessionMessageId).catch(() => null);
 
       if (!confessionMessage) {
-        await interaction.reply({
-          content: "The original confession message could not be found.",
-          ephemeral: true
+        await interaction.editReply({
+          content: "The original confession message could not be found."
         });
         return;
       }
@@ -528,9 +525,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
       }
 
-      await interaction.reply({
-        content: `Your reply has been posted in <#${thread.id}>.`,
-        ephemeral: true
+      await interaction.editReply({
+        content: `Your reply has been posted in <#${thread.id}>.`
       });
     }
   } catch (error) {
