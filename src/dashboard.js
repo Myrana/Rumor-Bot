@@ -110,6 +110,29 @@ function authorDisplayName(record) {
   return record.authorUsername || record.authorTag || record.authorId;
 }
 
+async function buildAuthorNameMap(client, authorIds) {
+  const uniqueAuthorIds = Array.from(new Set(authorIds.filter(Boolean)));
+  const entries = await Promise.all(
+    uniqueAuthorIds.map(async (authorId) => {
+      try {
+        const user = await client.users.fetch(authorId);
+        return [authorId, user.globalName || user.username || user.tag || authorId];
+      } catch (_error) {
+        return [authorId, null];
+      }
+    })
+  );
+
+  return new Map(entries);
+}
+
+function withResolvedAuthorNames(records, authorNameMap) {
+  return records.map((record) => ({
+    ...record,
+    authorUsername: record.authorUsername || record.authorTag || authorNameMap.get(record.authorId) || null
+  }));
+}
+
 function layout({ title, body, flashMessage = "" }) {
   return `<!doctype html>
 <html lang="en">
@@ -151,8 +174,13 @@ function loginPage(errorMessage = "") {
   });
 }
 
-function dashboardPage({ client, flashMessage = "", authorFilter = "" }) {
-  const allConfessions = listConfessions();
+async function dashboardPage({ client, flashMessage = "", authorFilter = "" }) {
+  const rawConfessions = listConfessions();
+  const authorNameMap = await buildAuthorNameMap(
+    client,
+    rawConfessions.map((confession) => confession.authorId)
+  );
+  const allConfessions = withResolvedAuthorNames(rawConfessions, authorNameMap);
   const memberSummaries = summarizeMembers(allConfessions);
   const visibleConfessions = authorFilter
     ? allConfessions.filter((confession) => confession.authorId === authorFilter)
@@ -340,8 +368,13 @@ function dashboardPage({ client, flashMessage = "", authorFilter = "" }) {
   });
 }
 
-function memberDirectoryPage({ client, flashMessage = "" }) {
-  const memberSummaries = summarizeMembers(listConfessions());
+async function memberDirectoryPage({ client, flashMessage = "" }) {
+  const rawConfessions = listConfessions();
+  const authorNameMap = await buildAuthorNameMap(
+    client,
+    rawConfessions.map((confession) => confession.authorId)
+  );
+  const memberSummaries = summarizeMembers(withResolvedAuthorNames(rawConfessions, authorNameMap));
   const rows = memberSummaries
     .map((member) => `<tr>
       <td><a href="/members/${encodeURIComponent(member.authorId)}">${escapeHtml(authorDisplayName(member))}</a><div class="subtle-id">${escapeHtml(member.authorId)}</div></td>
@@ -636,22 +669,27 @@ function startDashboard({ client }) {
     next();
   });
 
-  app.get("/", (request, response) => {
+  app.get("/", async (request, response) => {
     response.send(
-      dashboardPage({
+      await dashboardPage({
         client,
         authorFilter: normalizeField(request.query.authorId)
       })
     );
   });
 
-  app.get("/members", (_request, response) => {
-    response.send(memberDirectoryPage({ client }));
+  app.get("/members", async (_request, response) => {
+    response.send(await memberDirectoryPage({ client }));
   });
 
-  app.get("/members/:authorId", (request, response) => {
+  app.get("/members/:authorId", async (request, response) => {
     const authorId = normalizeField(request.params.authorId);
-    const confessions = listConfessions().filter((confession) => confession.authorId === authorId);
+    const rawConfessions = listConfessions().filter((confession) => confession.authorId === authorId);
+    const authorNameMap = await buildAuthorNameMap(
+      client,
+      rawConfessions.map((confession) => confession.authorId)
+    );
+    const confessions = withResolvedAuthorNames(rawConfessions, authorNameMap);
 
     if (!authorId || confessions.length === 0) {
       response.status(404).send(
