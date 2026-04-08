@@ -101,6 +101,11 @@ body {
   font-size: 2rem;
 }
 
+.summary-small {
+  font-size: 1.15rem !important;
+  line-height: 1.3;
+}
+
 .stack,
 .stack-xl {
   display: grid;
@@ -125,6 +130,20 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   align-items: end;
+}
+
+.header-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 label {
@@ -232,6 +251,47 @@ a {
   gap: 14px;
 }
 
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.member-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(22, 27, 34, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.member-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.member-id {
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.alias-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: #ffcfaa;
+  font-size: 0.9rem;
+}
+
 .thread-message {
   padding: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -265,7 +325,8 @@ code {
 @media (max-width: 900px) {
   .summary-grid,
   .grid-form,
-  .detail-grid {
+  .detail-grid,
+  .member-grid {
     grid-template-columns: 1fr;
   }
 
@@ -275,7 +336,10 @@ code {
 
   .card-header,
   .section-heading,
-  .thread-meta {
+  .thread-meta,
+  .member-card-top,
+  .header-actions,
+  .filter-form {
     align-items: flex-start;
     flex-direction: column;
   }

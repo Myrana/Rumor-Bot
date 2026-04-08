@@ -63,6 +63,44 @@ function discordMessageUrl(guildId, channelId, messageId) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 }
 
+function summarizeMembers(confessions) {
+  const summary = new Map();
+
+  for (const confession of confessions) {
+    const existing = summary.get(confession.authorId) || {
+      authorId: confession.authorId,
+      confessionCount: 0,
+      latestAt: confession.createdAt,
+      guildIds: new Set(),
+      aliases: new Set()
+    };
+
+    existing.confessionCount += 1;
+    existing.guildIds.add(confession.guildId);
+    existing.aliases.add(confession.alias);
+
+    if (!existing.latestAt || new Date(confession.createdAt).getTime() > new Date(existing.latestAt).getTime()) {
+      existing.latestAt = confession.createdAt;
+    }
+
+    summary.set(confession.authorId, existing);
+  }
+
+  return Array.from(summary.values())
+    .sort((left, right) => {
+      if (right.confessionCount !== left.confessionCount) {
+        return right.confessionCount - left.confessionCount;
+      }
+
+      return new Date(right.latestAt).getTime() - new Date(left.latestAt).getTime();
+    })
+    .map((entry) => ({
+      ...entry,
+      guildCount: entry.guildIds.size,
+      aliases: Array.from(entry.aliases).sort()
+    }));
+}
+
 function layout({ title, body, flashMessage = "" }) {
   return `<!doctype html>
 <html lang="en">
@@ -104,7 +142,13 @@ function loginPage(errorMessage = "") {
   });
 }
 
-function dashboardPage({ client, flashMessage = "" }) {
+function dashboardPage({ client, flashMessage = "", authorFilter = "" }) {
+  const allConfessions = listConfessions();
+  const memberSummaries = summarizeMembers(allConfessions);
+  const visibleConfessions = authorFilter
+    ? allConfessions.filter((confession) => confession.authorId === authorFilter)
+    : allConfessions;
+
   const guildCards = listGuildConfigs()
     .sort((left, right) => left.guildId.localeCompare(right.guildId))
     .map((config) => {
@@ -136,7 +180,24 @@ function dashboardPage({ client, flashMessage = "" }) {
     })
     .join("");
 
-  const confessionsTable = listConfessions()
+  const memberCards = memberSummaries
+    .slice(0, 12)
+    .map((member) => `<article class="member-card">
+      <div class="member-card-top">
+        <div>
+          <div class="member-id">${escapeHtml(member.authorId)}</div>
+          <div class="muted">${member.confessionCount} confession${member.confessionCount === 1 ? "" : "s"} across ${member.guildCount} guild${member.guildCount === 1 ? "" : "s"}</div>
+        </div>
+        <a class="button-link secondary-link" href="/members/${encodeURIComponent(member.authorId)}">View member</a>
+      </div>
+      <div class="alias-pills">
+        ${member.aliases.slice(0, 4).map((alias) => `<span class="pill">${escapeHtml(alias)}</span>`).join("")}
+      </div>
+      <div class="muted">Latest post: ${escapeHtml(formatDate(member.latestAt))}</div>
+    </article>`)
+    .join("");
+
+  const confessionsTable = visibleConfessions
     .map((confession) => {
       const guildName = guildLabel(client, confession.guildId);
       const messageUrl = discordMessageUrl(confession.guildId, confession.channelId, confession.messageId);
@@ -148,7 +209,7 @@ function dashboardPage({ client, flashMessage = "" }) {
         <td>${escapeHtml(guildName)}</td>
         <td>${escapeHtml(confession.alias)}</td>
         <td class="body-cell">${escapeHtml(confession.body)}</td>
-        <td>${escapeHtml(confession.authorId)}</td>
+        <td><a href="/members/${encodeURIComponent(confession.authorId)}">${escapeHtml(confession.authorId)}</a></td>
         <td>${formatDate(confession.createdAt)}</td>
         <td>
           <a href="${escapeHtml(messageUrl)}" target="_blank" rel="noreferrer">Post</a>
@@ -167,11 +228,11 @@ function dashboardPage({ client, flashMessage = "" }) {
       </article>
       <article class="summary-card">
         <span class="summary-label">Stored confessions</span>
-        <strong>${listConfessions().length}</strong>
+        <strong>${allConfessions.length}</strong>
       </article>
       <article class="summary-card">
-        <span class="summary-label">Connected guilds</span>
-        <strong>${client.guilds.cache.size}</strong>
+        <span class="summary-label">Tracked members</span>
+        <strong>${memberSummaries.length}</strong>
       </article>
     </section>
 
@@ -210,15 +271,37 @@ function dashboardPage({ client, flashMessage = "" }) {
       ${guildCards || '<section class="card"><p class="muted">No server-specific config has been saved yet.</p></section>'}
     </section>
 
+    <section class="stack">
+      <div class="section-heading">
+        <div>
+          <h2>Members</h2>
+          <p class="muted">Top posters by stored confession count.</p>
+        </div>
+        <a class="button-link secondary-link" href="/members">Open full member directory</a>
+      </div>
+      <div class="member-grid">
+        ${memberCards || '<section class="card"><p class="muted">No member activity has been stored yet.</p></section>'}
+      </div>
+    </section>
+
     <section class="card">
       <div class="card-header">
         <div>
           <h2>Confession history</h2>
           <p class="muted">This includes author IDs, so keep the dashboard restricted.</p>
         </div>
-        <form method="post" action="/logout">
-          <button class="secondary" type="submit">Log out</button>
-        </form>
+        <div class="header-actions">
+          <form method="get" action="/" class="filter-form">
+            <label>
+              <span>Filter by member ID</span>
+              <input type="text" name="authorId" value="${escapeHtml(authorFilter)}" placeholder="Discord user ID" />
+            </label>
+            <button type="submit">Apply</button>
+          </form>
+          <form method="post" action="/logout">
+            <button class="secondary" type="submit">Log out</button>
+          </form>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -233,7 +316,7 @@ function dashboardPage({ client, flashMessage = "" }) {
             </tr>
           </thead>
           <tbody>
-            ${confessionsTable || '<tr><td colspan="6" class="muted">No confessions have been stored yet.</td></tr>'}
+            ${confessionsTable || '<tr><td colspan="6" class="muted">No confessions match this filter yet.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -244,6 +327,51 @@ function dashboardPage({ client, flashMessage = "" }) {
     title: "Dashboard",
     body,
     flashMessage
+  });
+}
+
+function memberDirectoryPage({ client, flashMessage = "" }) {
+  const memberSummaries = summarizeMembers(listConfessions());
+  const rows = memberSummaries
+    .map((member) => `<tr>
+      <td><a href="/members/${encodeURIComponent(member.authorId)}">${escapeHtml(member.authorId)}</a></td>
+      <td>${member.confessionCount}</td>
+      <td>${member.guildCount}</td>
+      <td>${escapeHtml(member.aliases.slice(0, 5).join(", ")) || "None"}</td>
+      <td>${escapeHtml(formatDate(member.latestAt))}</td>
+    </tr>`)
+    .join("");
+
+  return layout({
+    title: "Member Directory",
+    flashMessage,
+    body: `<main class="stack-xl">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Tracked members</h2>
+            <p class="muted">Sort order is highest confession count, then most recent activity.</p>
+          </div>
+          <a class="button-link secondary-link" href="/">Back to dashboard</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Member ID</th>
+                <th>Confessions</th>
+                <th>Guilds</th>
+                <th>Aliases</th>
+                <th>Latest activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="5" class="muted">No member activity has been stored yet.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>`
   });
 }
 
@@ -260,7 +388,7 @@ function renderThreadMessage(message) {
   return `<article class="thread-message">
     <div class="thread-meta">
       <strong>${escapeHtml(title)}</strong>
-      <span>${escapeHtml(author)} • ${escapeHtml(formatDate(message.createdAt))}</span>
+      <span>${escapeHtml(author)} - ${escapeHtml(formatDate(message.createdAt))}</span>
     </div>
     <div class="thread-alias">Alias: ${escapeHtml(alias)}</div>
     <div class="thread-body">${escapeHtml(body)}</div>
@@ -350,6 +478,97 @@ async function confessionDetailPage({ client, confession, flashMessage = "" }) {
   });
 }
 
+function memberDetailPage({ client, authorId, confessions, flashMessage = "" }) {
+  const summary = summarizeMembers(confessions)[0] || {
+    confessionCount: confessions.length,
+    guildCount: new Set(confessions.map((confession) => confession.guildId)).size,
+    aliases: Array.from(new Set(confessions.map((confession) => confession.alias))).sort(),
+    latestAt: confessions[0]?.createdAt || null
+  };
+
+  const rows = confessions
+    .map((confession) => {
+      const guildName = guildLabel(client, confession.guildId);
+      const threadUrl = confession.threadId
+        ? discordMessageUrl(confession.guildId, confession.threadId, confession.threadId)
+        : "";
+
+      return `<tr>
+        <td>${escapeHtml(guildName)}</td>
+        <td>${escapeHtml(confession.alias)}</td>
+        <td class="body-cell">${escapeHtml(confession.body)}</td>
+        <td>${escapeHtml(formatDate(confession.createdAt))}</td>
+        <td>
+          <a href="/confessions/${encodeURIComponent(confession.messageId)}">Details</a>
+          <a href="${escapeHtml(discordMessageUrl(confession.guildId, confession.channelId, confession.messageId))}" target="_blank" rel="noreferrer">Post</a>
+          ${threadUrl ? ` <a href="${escapeHtml(threadUrl)}" target="_blank" rel="noreferrer">Thread</a>` : ""}
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  return layout({
+    title: `Member ${authorId}`,
+    flashMessage,
+    body: `<main class="stack-xl">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>${escapeHtml(authorId)}</h2>
+            <p class="muted">Moderation view for one stored member.</p>
+          </div>
+          <a class="button-link secondary-link" href="/members">Back to members</a>
+        </div>
+        <div class="summary-grid">
+          <article class="summary-card">
+            <span class="summary-label">Confessions</span>
+            <strong>${summary.confessionCount}</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Guilds</span>
+            <strong>${summary.guildCount}</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Latest activity</span>
+            <strong class="summary-small">${escapeHtml(formatDate(summary.latestAt))}</strong>
+          </article>
+        </div>
+        <div class="detail-block">
+          <div class="detail-label">Aliases used</div>
+          <div class="alias-pills">
+            ${summary.aliases.map((alias) => `<span class="pill">${escapeHtml(alias)}</span>`).join("") || '<span class="muted">No aliases recorded.</span>'}
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Confession history</h2>
+            <p class="muted">Every stored confession for this member.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Guild</th>
+                <th>Alias</th>
+                <th>Confession</th>
+                <th>Created</th>
+                <th>Links</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="5" class="muted">No confessions found for this member.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>`
+  });
+}
+
 function normalizeField(value) {
   const trimmed = String(value ?? "").trim();
   return trimmed || null;
@@ -402,8 +621,37 @@ function startDashboard({ client }) {
     next();
   });
 
-  app.get("/", (_request, response) => {
-    response.send(dashboardPage({ client }));
+  app.get("/", (request, response) => {
+    response.send(
+      dashboardPage({
+        client,
+        authorFilter: normalizeField(request.query.authorId)
+      })
+    );
+  });
+
+  app.get("/members", (_request, response) => {
+    response.send(memberDirectoryPage({ client }));
+  });
+
+  app.get("/members/:authorId", (request, response) => {
+    const authorId = normalizeField(request.params.authorId);
+    const confessions = listConfessions().filter((confession) => confession.authorId === authorId);
+
+    if (!authorId || confessions.length === 0) {
+      response.status(404).send(
+        layout({
+          title: "Member Not Found",
+          body: `<main class="card">
+            <p class="muted">That member ID is not in the stored confession history.</p>
+            <a class="button-link secondary-link" href="/members">Back to members</a>
+          </main>`
+        })
+      );
+      return;
+    }
+
+    response.send(memberDetailPage({ client, authorId, confessions }));
   });
 
   app.get("/confessions/:messageId", async (request, response) => {
