@@ -8,7 +8,9 @@ This bot lets members post confessions under an alias while still allowing admin
 - Admin-only audit trail that records the real author
 - Admin audit logging for anonymous thread replies too
 - One-click thread replies for each confession
+- Reply messages inside the thread include a fresh reply button so members can quickly post follow-ups
 - Optional role ping on every new confession
+- Optional per-member reply limit per confession (`MAX_REPLIES_PER_MEMBER_PER_CONFESSION`)
 - Per-server configuration with slash commands
 - Built-in web dashboard for config management and confession history
 
@@ -41,6 +43,7 @@ This bot lets members post confessions under an alias while still allowing admin
    - `DASHBOARD_PASSWORD` for the web dashboard login
    - optionally `DATA_DIR` if you want storage outside the project folder
    - optionally `DASHBOARD_PORT`
+   - optionally `MAX_REPLIES_PER_MEMBER_PER_CONFESSION` (`0` or unset means unlimited replies per member)
 4. Install packages:
 
 ```bash

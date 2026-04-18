@@ -22,7 +22,9 @@ const {
   dataDir,
   getConfession,
   getGuildConfig,
+  listRepliesForConfession,
   saveConfession,
+  saveReply,
   storePath,
   updateConfession,
   upsertGuildConfig
@@ -119,6 +121,15 @@ function confessionButtonRow({ guildId, messageId, threadId = null }) {
   }
 
   return row;
+}
+
+function threadReplyButtonRow(confessionMessageId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`reply:${confessionMessageId}`)
+      .setLabel("Reply to this confession")
+      .setStyle(ButtonStyle.Primary)
+  );
 }
 
 function buildConfessionEmbed({ alias, body, authorTag }) {
@@ -553,6 +564,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const thread = await createReplyThread(confessionMessage, confessionRecord);
       const alias = interaction.fields.getTextInputValue("alias").trim();
       const replyBody = interaction.fields.getTextInputValue("reply").trim();
+      const maxRepliesPerMember = Number.parseInt(process.env.MAX_REPLIES_PER_MEMBER_PER_CONFESSION || "0", 10);
+      const isReplyLimitEnabled = Number.isFinite(maxRepliesPerMember) && maxRepliesPerMember > 0;
+
+      if (isReplyLimitEnabled) {
+        const existingReplies = listRepliesForConfession(confessionMessageId);
+        const existingRepliesByMember = existingReplies.filter((reply) => reply.authorId === interaction.user.id);
+
+        if (existingRepliesByMember.length >= maxRepliesPerMember) {
+          await interaction.editReply({
+            content: `You've reached the reply limit for this confession (${maxRepliesPerMember}).`
+          });
+          return;
+        }
+      }
 
       const replyEmbed = new EmbedBuilder()
         .setColor(0xfee75c)
@@ -563,7 +588,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
         )
         .setTimestamp();
 
-      await thread.send({ embeds: [replyEmbed] });
+      await thread.send({
+        embeds: [replyEmbed],
+        components: [threadReplyButtonRow(confessionMessageId)]
+      });
+      saveReply({
+        replyId: interaction.id,
+        confessionMessageId,
+        guildId: interaction.guild.id,
+        threadId: thread.id,
+        alias,
+        body: replyBody,
+        authorId: interaction.user.id,
+        authorUsername: interaction.user.username || null,
+        authorTag: interaction.user.tag || null,
+        createdAt: new Date().toISOString()
+      });
 
       const config = getEffectiveGuildConfig(interaction.guild.id);
       if (config.auditChannelId) {
