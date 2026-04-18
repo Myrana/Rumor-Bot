@@ -23,7 +23,8 @@ const storePath = path.join(dataDir, "store.json");
 
 const defaultState = {
   guilds: {},
-  confessions: {}
+  confessions: {},
+  replies: {}
 };
 
 function ensureStore() {
@@ -62,6 +63,15 @@ function listConfessions() {
   );
 }
 
+function listRepliesForConfession(confessionMessageId) {
+  const state = readStore();
+  const replies = state.replies || {};
+
+  return Object.values(replies)
+    .filter((reply) => reply.confessionMessageId === confessionMessageId)
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+}
+
 function writeStore(state) {
   ensureStore();
   fs.writeFileSync(storePath, JSON.stringify(state, null, 2));
@@ -92,6 +102,18 @@ function saveConfession(confession) {
   return confession;
 }
 
+function saveReply(reply) {
+  const state = readStore();
+
+  if (!state.replies) {
+    state.replies = {};
+  }
+
+  state.replies[reply.replyId] = reply;
+  writeStore(state);
+  return reply;
+}
+
 function getConfession(messageId) {
   const state = readStore();
   return state.confessions[messageId] || null;
@@ -119,9 +141,11 @@ module.exports = {
   getGuildConfig,
   getConfession,
   listConfessions,
+  listRepliesForConfession,
   listGuildConfigs,
   readStore,
   saveConfession,
+  saveReply,
   storePath,
   updateConfession,
   upsertGuildConfig
