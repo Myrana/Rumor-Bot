@@ -129,3 +129,4 @@ Use the OAuth URL generator in the Discord developer portal and include the `bot
 - The audit channel should be visible only to trusted moderators/admins.
 - The dashboard shows author IDs and confession contents, so protect it with a strong password and keep it private.
 - If a confession already has a reply thread, the reply button posts into the existing thread instead of creating a new one.
+- Discord may show buttons on the thread starter message as disabled inside the thread view; the bot posts an active reply button message in the thread for follow-up replies.

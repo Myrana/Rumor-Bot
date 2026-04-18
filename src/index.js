@@ -232,6 +232,11 @@ async function createReplyThread(confessionMessage, confessionRecord) {
     reason: `Reply thread for confession by alias ${confessionRecord.alias}`
   });
 
+  await thread.send({
+    content: "Use the button below to post an anonymous reply in this thread.",
+    components: [threadReplyButtonRow(confessionRecord.messageId)]
+  }).catch(() => null);
+
   updateConfession(confessionRecord.messageId, { threadId: thread.id });
   await confessionMessage.edit({
     components: [
@@ -425,6 +430,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         autoArchiveDuration: 1440,
         reason: `Reply thread for confession by alias ${alias}`
       });
+
+      await thread.send({
+        content: "Use the button below to post an anonymous reply in this thread.",
+        components: [threadReplyButtonRow(postedMessage.id)]
+      }).catch(() => null);
 
       await postedMessage.edit({
         embeds: [confessionEmbed],
