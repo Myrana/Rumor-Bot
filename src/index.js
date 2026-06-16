@@ -598,10 +598,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
         )
         .setTimestamp();
 
-      await thread.send({
-        embeds: [replyEmbed],
-        components: [threadReplyButtonRow(confessionMessageId)]
-      });
+      const config = getEffectiveGuildConfig(interaction.guild.id);
+
+await thread.send({
+  content: config.pingRoleId ? `<@&${config.pingRoleId}>` : undefined,
+  embeds: [replyEmbed],
+  components: [threadReplyButtonRow(confessionMessageId)],
+  allowedMentions: config.pingRoleId
+    ? { roles: [config.pingRoleId] }
+    : { parse: [] }
+});
       saveReply({
         replyId: interaction.id,
         confessionMessageId,
