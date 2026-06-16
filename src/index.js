@@ -589,16 +589,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
       }
 
-      const replyEmbed = new EmbedBuilder()
-        .setColor(0xfee75c)
-        .setTitle("Confession Reply")
-        .addFields(
-          { name: "Alias", value: alias },
-          { name: "Reply", value: replyBody }
-        )
-        .setTimestamp();
+     const replyEmbed = new EmbedBuilder()
+  .setColor(0xfee75c)
+  .setTitle("Confession Reply")
+  .addFields(
+    { name: "Alias", value: alias },
+    { name: "Reply", value: replyBody }
+  )
+  .setTimestamp();
 
-      
+const config = getEffectiveGuildConfig(interaction.guild.id);
 
 await thread.send({
   content: config.pingRoleId ? `<@&${config.pingRoleId}>` : undefined,
@@ -621,7 +621,7 @@ await thread.send({
         createdAt: new Date().toISOString()
       });
 
-      const config = getEffectiveGuildConfig(interaction.guild.id);
+     
       if (config.auditChannelId) {
         const auditChannel = await interaction.guild.channels.fetch(config.auditChannelId).catch(() => null);
 
