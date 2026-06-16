@@ -598,7 +598,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         )
         .setTimestamp();
 
-      const config = getEffectiveGuildConfig(interaction.guild.id);
+      
 
 await thread.send({
   content: config.pingRoleId ? `<@&${config.pingRoleId}>` : undefined,
